@@ -29,6 +29,9 @@ const DataTable = ({
   onDeleteMultiple,
   onTimeFilterChange,
   initialTimeFilter = "1", // Default to 1 month if not provided
+  showFilters = true, // New prop to control filter visibility
+  selected = undefined,
+  setSelected = undefined,
 }) => {
   const [timeFilter, setTimeFilter] = useState(initialTimeFilter); // Use the provided initialTimeFilter
   // Extract column headers from the first data item if available
@@ -42,27 +45,35 @@ const DataTable = ({
     });
 
     // Filter out any internal fields we don't want to display
-    return Array.from(allKeys).filter((key) => key !== "id" && key !== "status");
+    return Array.from(allKeys).filter(
+      (key) => key !== "id" && key !== "status"
+    );
   };
 
   const columnHeaders = getColumnHeaders();
-  const [selected, setSelected] = useState([]);
+  // Use external selected state if provided, otherwise use internal state
+  const [internalSelected, setInternalSelected] = useState([]);
+
+  // Use the provided selected state and setter if available, otherwise use internal state
+  const selectedState = selected !== undefined ? selected : internalSelected;
+  const setSelectedState =
+    setSelected !== undefined ? setSelected : setInternalSelected;
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const handleSelectAllClick = (event) => {
     if (event.target.checked) {
       const newSelected = data.map((row) => row.id);
-      setSelected(newSelected);
+      setSelectedState(newSelected);
       return;
     }
-    setSelected([]);
+    setSelectedState([]);
   };
 
   const handleClick = (event, id) => {
     event.stopPropagation();
-    const selectedIndex = selected.indexOf(id);
-    let newSelected = [...selected];
+    const selectedIndex = selectedState.indexOf(id);
+    let newSelected = [...selectedState];
 
     // Toggle selection: if already selected, remove it; otherwise add it
     if (selectedIndex === -1) {
@@ -71,28 +82,30 @@ const DataTable = ({
       newSelected.splice(selectedIndex, 1); // Remove this row from selections
     }
 
-    setSelected(newSelected);
+    setSelectedState(newSelected);
   };
 
-  const isSelected = (id) => selected.indexOf(id) !== -1;
+  const isSelected = (id) => selectedState.indexOf(id) !== -1;
 
   const handleDeleteSelected = () => {
-    if (selected.length > 0) {
-      onDeleteMultiple(selected);
-      setSelected([]);
+    if (selectedState.length > 0) {
+      onDeleteMultiple(selectedState);
+      setSelectedState([]);
     }
   };
 
   const handleTimeFilterChange = (event) => {
     const value = event.target.value;
-    console.log(value)
+    console.log(value);
     setTimeFilter(value);
     // Only update local state, don't trigger filter change
   };
-  console.log(timeFilter)
+  console.log(timeFilter);
 
   return (
     <>
+      {/* Conditionally render the filters section */}
+
       <div
         style={{
           marginBottom: "24px",
@@ -101,32 +114,34 @@ const DataTable = ({
           alignItems: "center",
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <FormControl sx={{ minWidth: 200 }}>
-            <InputLabel id="time-filter-label">Time Period</InputLabel>
-            <Select
-              labelId="time-filter-label"
-              id="time-filter-select"
-              value={timeFilter}
-              label="Time Period"
-              onChange={handleTimeFilterChange}
-              size="small"
+        {showFilters && (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <FormControl sx={{ minWidth: 200 }}>
+              <InputLabel id="time-filter-label">Time Period</InputLabel>
+              <Select
+                labelId="time-filter-label"
+                id="time-filter-select"
+                value={timeFilter}
+                label="Time Period"
+                onChange={handleTimeFilterChange}
+                size="small"
+              >
+                <MenuItem value="1">Last Month</MenuItem>
+                <MenuItem value="3">Last 3 Months</MenuItem>
+                <MenuItem value="6">Last 6 Months</MenuItem>
+                <MenuItem value="12">Last 12 Months</MenuItem>
+              </Select>
+            </FormControl>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => onTimeFilterChange(timeFilter)}
+              sx={{ height: "40px" }}
             >
-              <MenuItem value="1">Last Month</MenuItem>
-              <MenuItem value="3">Last 3 Months</MenuItem>
-              <MenuItem value="6">Last 6 Months</MenuItem>
-              <MenuItem value="12">Last 12 Months</MenuItem>
-            </Select>
-          </FormControl>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={() => onTimeFilterChange(timeFilter)}
-            sx={{ height: "40px" }}
-          >
-            Apply
-          </Button>
-        </Box>
+              Apply
+            </Button>
+          </Box>
+        )}
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
           <Button
             variant="contained"
@@ -137,9 +152,9 @@ const DataTable = ({
               padding: "8px 16px",
               fontWeight: "500",
             }}
-            disabled={selected.length === 0}
+            disabled={selectedState.length === 0}
           >
-            Discontinue Selected ({selected.length})
+            Discontinue Selected ({selectedState.length})
           </Button>
         </div>
       </div>
@@ -177,9 +192,12 @@ const DataTable = ({
               >
                 <Checkbox
                   indeterminate={
-                    selected.length > 0 && selected.length < data.length
+                    selectedState.length > 0 &&
+                    selectedState.length < data.length
                   }
-                  checked={data.length > 0 && selected.length === data.length}
+                  checked={
+                    data.length > 0 && selectedState.length === data.length
+                  }
                   onChange={handleSelectAllClick}
                 />
               </TableCell>
@@ -249,6 +267,7 @@ const DataTable = ({
                       checked={isItemSelected}
                       onChange={(event) => handleClick(event, row.id)}
                       onClick={(e) => e.stopPropagation()}
+                      disabled={row.status === "Discontinued"}
                     />
                   </TableCell>
 
@@ -271,9 +290,11 @@ const DataTable = ({
                       borderBottom: "1px solid #f0f0f0",
                     }}
                   >
-                    <Chip 
+                    <Chip
                       label={row.status || "Active"}
-                      color={row.status === "Discontinued" ? "error" : "success"}
+                      color={
+                        row.status === "Discontinued" ? "error" : "success"
+                      }
                       size="small"
                       sx={{ fontWeight: 500 }}
                     />

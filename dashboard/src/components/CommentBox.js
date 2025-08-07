@@ -11,6 +11,7 @@ import {
   useMediaQuery
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
+import LaunchIcon from '@mui/icons-material/Launch';
 
 const CommentBox = ({ selectedRow, onSubmit }) => {
   const [comment, setComment] = useState('');

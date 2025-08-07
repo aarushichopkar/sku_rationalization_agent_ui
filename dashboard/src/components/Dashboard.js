@@ -44,8 +44,32 @@ const Dashboard = () => {
             user_id: "5139041",
             prompt: `Return 10 least performing SKUs from the last ${months} ${
               months === "1" ? "month" : "months"
-            } as a valid table format. Provide only the item name and number, also give short descriptin. Create a score between 1 to 100, where 100 is the least performing according to the data present and also add reason in short. DO NOT mention any sales, price or margin data in the output. Do not include any text, explanation, markdown, or escape characters. Output must be raw JSON only, like:[{'sku': '12345','name': 'Product A','despcription': 'desp', 'score': 98.7}, ...]
- `,
+            } as a valid JSON array. Provide only the item number and name, a short description about the product, a score between 1 and 100 (where 100 is the least performing), and a short reason for underperformance.
+ 
+Do not include any sales, price, or margin data.  
+If any value is unknown, return it as "NA".  
+Do not fabricate or make up data.  
+Do not include any explanation, markdown, or escape characters. Output must be raw JSON only.
+ 
+The output must follow this format:
+ 
+[
+  {
+    "sku": "86158",
+    "name": "MNWX QT OIL BASE SPECIAL WALNUT",
+    "description": "Minwax Quart Oil Base Special Walnut",
+    "remarks": "negative sales amount",
+    "score": 96
+  },
+  {
+    "sku": "12345",
+    "name": "Product A",
+    "description": "product description",
+    "remarks": "low sales",
+    "score": 98.7
+  },
+  ...
+]`,
           }),
         }
       );
@@ -76,6 +100,9 @@ const Dashboard = () => {
 
         console.log("Data with IDs:", dataWithIds);
         setData(dataWithIds);
+        
+        // Store the data in localStorage for access by other tabs
+        localStorage.setItem('dashboardData', JSON.stringify(dataWithIds));
       } else {
         setError("Invalid response format from API");
       }
@@ -157,7 +184,10 @@ const Dashboard = () => {
     setSelectedRow(row);
   };
 
-  const handleCommentSubmit = async (comment) => {
+  const handleCommentSubmit = (comment) => {
+    // Make sure the latest data is stored in localStorage before opening new tab
+    localStorage.setItem('dashboardData', JSON.stringify(data));
+    
     return new Promise(async (resolve, reject) => {
       try {
         const response = await fetch(
@@ -188,7 +218,7 @@ const Dashboard = () => {
         if (selectedRow) {
           setSelectedRow(null);
         }
-        
+
         // Resolve the promise with the response data
         resolve(responseData);
       } catch (err) {
@@ -245,7 +275,7 @@ const Dashboard = () => {
         }}
       >
         <Typography variant="h4" component="h1" gutterBottom>
-          Dashboard
+          Assortment Dashboard
         </Typography>
       </Box>
 
