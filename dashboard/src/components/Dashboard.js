@@ -25,7 +25,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchSkuData(timeFilter);
-  }, []);  // Initial fetch with default time filter
+  }, []); // Initial fetch with default time filter
 
   const fetchSkuData = async (months = "1") => {
     try {
@@ -40,12 +40,16 @@ const Dashboard = () => {
               "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwcm9qZWN0X2lkIjo0NTksInVzZXJfaWQiOiI1MTM5MDQxIiwiZXhwIjoxNzU2NjcyMDk2fQ.00qrKqs-DCZeb_mi56BZt4pnIawgPwu5cT-gPPVey0g",
           },
           body: JSON.stringify({
-            "app_name": "sku_rationalization_agent_1",
-            "user_id": "5139041",
-            "prompt": `Return 10 least performing SKUs from the last ${months} ${months === "1" ? "month" : "months"} as a valid table format. Do not include any text, explanation, markdown, or escape characters. Output must be raw JSON only, like:[{'sku': '12345','name': 'Product A','score': 98.7}, ...]`
-        }),
+            app_name: "sku_rationalization_agent_1",
+            user_id: "5139041",
+            prompt: `Return 10 least performing SKUs from the last ${months} ${
+              months === "1" ? "month" : "months"
+            } as a valid table format. Provide only the item name and number, also give short descriptin. Create a score between 1 to 100, where 100 is the least performing according to the data present and also add reason in short. DO NOT mention any sales, price or margin data in the output. Do not include any text, explanation, markdown, or escape characters. Output must be raw JSON only, like:[{'sku': '12345','name': 'Product A','despcription': 'desp', 'score': 98.7}, ...]
+ `,
+          }),
         }
       );
+      // ${months} ${months === "1" ? "month" : "months"}
 
       if (!response.ok) {
         throw new Error(`API request failed with status ${response.status}`);
@@ -57,19 +61,19 @@ const Dashboard = () => {
       // Parse the response and convert to table data format
       if (responseData) {
         const tableData = parseEscapedJsonString(responseData?.text);
-        
+
         // Add unique IDs and default status to each row if they don't already have them
         const dataWithIds = tableData.map((item, index) => {
           if (!item.id) {
-            return { 
-              ...item, 
+            return {
+              ...item,
               id: item.sku || `row-${index}`,
-              status: item.status || "Active" 
+              status: item.status || "Active",
             };
           }
           return { ...item, status: item.status || "Active" };
         });
-        
+
         console.log("Data with IDs:", dataWithIds);
         setData(dataWithIds);
       } else {
@@ -86,62 +90,62 @@ const Dashboard = () => {
   function parseEscapedJsonString(escapedString) {
     try {
       // Log the input to debug
-      console.log('Raw input:', escapedString);
-      
+      console.log("Raw input:", escapedString);
+
       // For the specific format in the example: a JSON string with escaped quotes
-      if (typeof escapedString === 'string') {
+      if (typeof escapedString === "string") {
         // This is specifically for the format shown in the example
         // "[{\"sku\": \"00123\", \"name\": \"Product Alpha\", \"score\": 98.7}, ...]"
-        
+
         // First, try direct parsing
         try {
           const parsed = JSON.parse(escapedString);
-          console.log('Direct parse successful:', parsed);
+          console.log("Direct parse successful:", parsed);
           return parsed;
         } catch (e) {
-          console.log('Direct parse failed, trying alternative methods');
-          
+          console.log("Direct parse failed, trying alternative methods");
+
           // If the string is wrapped in quotes and contains escaped quotes
           // This is a common format from some APIs
           const stringPattern = /^"(.*)"$/;
           if (stringPattern.test(escapedString)) {
             // Remove the outer quotes and parse the inner content
-            const innerContent = escapedString.replace(stringPattern, '$1');
-            
+            const innerContent = escapedString.replace(stringPattern, "$1");
+
             // Replace escaped backslashes and then parse
-            const unescaped = innerContent.replace(/\\/g, '');
+            const unescaped = innerContent.replace(/\\/g, "");
             try {
               const result = JSON.parse(unescaped);
-              console.log('Unescaped parse successful:', result);
+              console.log("Unescaped parse successful:", result);
               return result;
             } catch (innerError) {
-              console.error('Unescaped parse failed:', innerError);
+              console.error("Unescaped parse failed:", innerError);
             }
           }
         }
       } else if (Array.isArray(escapedString)) {
         return escapedString;
-      } else if (typeof escapedString === 'object' && escapedString !== null) {
+      } else if (typeof escapedString === "object" && escapedString !== null) {
         return escapedString;
       }
-      
+
       // Last resort: try to manually parse the string by replacing patterns
-      if (typeof escapedString === 'string') {
+      if (typeof escapedString === "string") {
         // Remove all backslashes before quotes
         const manuallyUnescaped = escapedString.replace(/\\"|\"/g, '"');
         // Remove outer quotes if they exist
-        const cleaned = manuallyUnescaped.replace(/^"(.*)"$/, '$1');
-        
+        const cleaned = manuallyUnescaped.replace(/^"(.*)"$/, "$1");
+
         try {
           const result = JSON.parse(cleaned);
-          console.log('Manual parse successful:', result);
+          console.log("Manual parse successful:", result);
           return result;
         } catch (manualError) {
-          console.error('Manual parse failed:', manualError);
+          console.error("Manual parse failed:", manualError);
         }
       }
-      
-      console.error('All parsing attempts failed');
+
+      console.error("All parsing attempts failed");
       return [];
     } catch (error) {
       console.error("Invalid escaped JSON:", error);
@@ -153,16 +157,45 @@ const Dashboard = () => {
     setSelectedRow(row);
   };
 
-  const handleCommentSubmit = (comment) => {
-    // Here you would typically call an API to trigger notifications
-    console.log(`Submitting comment: ${comment}`);
-    // Simulate API call success
-    alert(`Comment submitted successfully`);
+  const handleCommentSubmit = async (comment) => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const response = await fetch(
+          "https://internal-sadc-stage.carbon.lowes.com/genai-agents/api/v1/ask",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization:
+                "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwcm9qZWN0X2lkIjo0NTksInVzZXJfaWQiOiI1MTM5MDQxIiwiZXhwIjoxNzU2NjcyMDk2fQ.00qrKqs-DCZeb_mi56BZt4pnIawgPwu5cT-gPPVey0g",
+            },
+            body: JSON.stringify({
+              app_name: "Announcement_Agent",
+              user_id: "5139041",
+              prompt: `Can you send mail using Announcement_Tool with submitter_name = Arvind, submitter_team = Team UC6, comments = ${comment}, from_email = saiarvind.pulime@lowes.com`,
+            }),
+          }
+        );
 
-    // Clear selected row if there is one
-    if (selectedRow) {
-      setSelectedRow(null);
-    }
+        if (!response.ok) {
+          throw new Error(`API request failed with status ${response.status}`);
+        }
+
+        const responseData = await response.json();
+        console.log("API Response:", responseData);
+
+        // Clear selected row if there is one
+        if (selectedRow) {
+          setSelectedRow(null);
+        }
+        
+        // Resolve the promise with the response data
+        resolve(responseData);
+      } catch (err) {
+        console.error("Error submitting comment:", err);
+        reject(err);
+      }
+    });
   };
 
   const handleDeleteRow = (id) => {
@@ -217,7 +250,14 @@ const Dashboard = () => {
       </Box>
 
       {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px' }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            height: "300px",
+          }}
+        >
           <CircularProgress size={60} thickness={4} />
           <Typography variant="h6" sx={{ ml: 2 }}>
             Loading data...
@@ -263,7 +303,10 @@ const Dashboard = () => {
               backgroundColor: theme.palette.grey[50],
             }}
           >
-            <CommentBox selectedRow={selectedRow} onSubmit={handleCommentSubmit} />
+            <CommentBox
+              selectedRow={selectedRow}
+              onSubmit={handleCommentSubmit}
+            />
           </Paper>
         </>
       )}
